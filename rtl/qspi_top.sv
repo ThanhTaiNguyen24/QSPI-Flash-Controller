@@ -79,7 +79,8 @@ module qspi_flash_top #(
     logic                   start_pulse_cdc;      
  
     // Internal Reset Synchronization
-    logic                   cclk_reset_n;        
+    logic                   cclk_reset_n;     
+    logic                   aclk_reset_n;     
  
     // FSM <-> QSPI Phy Control Signals
     logic                   qspi_start;
@@ -104,8 +105,8 @@ module qspi_flash_top #(
     logic                   rd_en_s_m;
     logic                   rd_empty_s_m;
     
-    axis_if #(.DATA_WIDTH(DATA_WIDTH)) axis_s_int (.clk(clk_axi), .reset_n(pclk_reset_n));
-    axis_if #(.DATA_WIDTH(DATA_WIDTH)) axis_m_int (.clk(clk_axi), .reset_n(pclk_reset_n));
+    axis_if #(.DATA_WIDTH(DATA_WIDTH)) axis_s_int (.clk(clk_axi), .reset_n(aclk_reset_n));
+    axis_if #(.DATA_WIDTH(DATA_WIDTH)) axis_m_int (.clk(clk_axi), .reset_n(aclk_reset_n));
 
     assign axis_s_int.tvalid = s_axis_tvalid;
     assign axis_s_int.tdata  = s_axis_tdata;
@@ -185,10 +186,16 @@ module qspi_flash_top #(
         .d_in(status_flash_busy),
         .d_out(status_flash_busy_cdc)
     );
-    rst_sync u_reset_cdc(
+    rst_sync u_reset_ctrl_cdc(
         .clk_dst(clk_ctrl),
         .rst_in_n(pclk_reset_n),
         .rst_out_n(cclk_reset_n)
+    );
+
+    rst_sync u_reset_axis_cdc(
+        .clk_dst(clk_ctrl),
+        .rst_in_n(pclk_reset_n),
+        .rst_out_n(aclk_reset_n)
     );
     // Register Capture on START PULSE (Latch APB -> CTRL)
     latch_on_start u_ctrl_cdc (
@@ -220,14 +227,14 @@ module qspi_flash_top #(
         .clk_src(clk_apb),          
         .rst_n_src(pclk_reset_n),  
         .clk_dst(clk_axi),        
-        .rst_n_dst(pclk_reset_n),  
+        .rst_n_dst(aclk_reset_n),  
         .pulse_in(start_from_apb),
         .pulse_out(start_pulse_axi)
     );
 
     latch_on_start u_len_axi_cdc (
         .clk_ctrl(clk_axi),              
-        .rst_n_ctrl(pclk_reset_n),
+        .rst_n_ctrl(aclk_reset_n),
         .reg_apb(xfer_len_apb),        
         .start_pulse_cdc(start_pulse_axi),
         .reg_ctrl(xfer_len_axi)
@@ -299,7 +306,7 @@ module qspi_flash_top #(
 
     async_fifo u_async_fifo_wr (
         .wclk(clk_axi),
-        .wrst_n(pclk_reset_n),
+        .wrst_n(aclk_reset_n),
         .wdata(wdata_m_s),
         .wr_en(wr_en_m_s),
         .wr_full(wr_full_m_s),
@@ -318,7 +325,7 @@ module qspi_flash_top #(
         .wr_en(wr_en_s_m),
         .wr_full(wr_full_s_m),
         .rclk(clk_axi),
-        .rrst_n(pclk_reset_n),
+        .rrst_n(aclk_reset_n),
         .rdata(rdata_s_m),
         .rd_en(rd_en_s_m),
         .rd_empty(rd_empty_s_m)

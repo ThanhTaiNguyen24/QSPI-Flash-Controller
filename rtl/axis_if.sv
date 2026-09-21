@@ -17,7 +17,6 @@ interface axis_if #(parameter DATA_WIDTH = 32) (
         output tdata, tkeep, tvalid, tlast
     );
 
-    // ĐÃ SỬA: Thêm clk và reset_n
     modport slave (
         input  clk, reset_n, tdata, tkeep, tvalid, tlast,
         output tready
